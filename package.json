@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "build": "npm run build --prefix SmartCafe && mv SmartCafe/build build"
+  },
   "devDependencies": {
     "supabase": "^2.103.0"
   }
