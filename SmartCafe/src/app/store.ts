@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { API_BASE_URL } from "./supabaseClient";
 
 export type OrderStatus = "pending" | "preparing" | "ready" | "delivered";
 export type TableStatus = "available" | "occupied" | "cleaning";
@@ -51,213 +51,256 @@ interface CafeState {
   tables: Table[];
   orders: Order[];
   auth: AuthState;
+  loading: boolean;
+
+  // Data Fetching
+  fetchMenu: () => Promise<void>;
+  fetchTables: () => Promise<void>;
+  fetchOrders: () => Promise<void>;
 
   // Menu Actions
-  addMenuItem: (item: MenuItem) => void;
-  updateMenuItem: (id: string, item: Partial<MenuItem>) => void;
-  deleteMenuItem: (id: string) => void;
+  addMenuItem: (item: Omit<MenuItem, "id">) => Promise<void>;
+  updateMenuItem: (id: string, item: Partial<MenuItem>) => Promise<void>;
+  deleteMenuItem: (id: string) => Promise<void>;
 
   // Table Actions
-  occupyTable: (number: string, customerName: string) => void;
-  freeTable: (number: string) => void;
-  updateTableStatus: (number: string, status: TableStatus) => void;
+  occupyTable: (number: string, customerName: string) => Promise<void>;
+  freeTable: (number: string) => Promise<void>;
+  updateTableStatus: (number: string, status: TableStatus) => Promise<void>;
 
   // Order Actions
-  placeOrder: (order: Omit<Order, "id" | "createdAt" | "status">) => string;
-  updateOrderStatus: (id: string, status: OrderStatus) => void;
-  cancelOrder: (id: string) => void;
-  completePayment: (orderId: string, tableNumber: string) => void;
+  placeOrder: (order: Omit<Order, "id" | "createdAt" | "status">) => Promise<string>;
+  updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
+  cancelOrder: (id: string) => Promise<void>;
+  completePayment: (orderId: string, tableNumber: string) => Promise<void>;
 
   // Auth Actions
   login: (role: UserRole) => void;
   logout: () => void;
 }
 
-const initialMenuItems: MenuItem[] = [
-  {
-    id: "1",
-    name: "Cappuccino",
-    description: "Rich espresso with steamed milk foam",
-    price: 180,
-    category: "Coffee",
-    image: "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400&h=400&fit=crop",
-    isVeg: true,
-    popular: true
-  },
-  {
-    id: "2",
-    name: "Latte",
-    description: "Smooth espresso with steamed milk",
-    price: 160,
-    category: "Coffee",
-    image: "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400&h=400&fit=crop",
-    isVeg: true
-  },
-  {
-    id: "3",
-    name: "Espresso",
-    description: "Strong and bold Italian coffee",
-    price: 120,
-    category: "Coffee",
-    image: "https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400&h=400&fit=crop",
-    isVeg: true
-  },
-  {
-    id: "4",
-    name: "Green Tea",
-    description: "Refreshing and healthy green tea",
-    price: 100,
-    category: "Tea",
-    image: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&h=400&fit=crop",
-    isVeg: true
-  },
-  {
-    id: "5",
-    name: "Masala Chai",
-    description: "Traditional Indian spiced tea",
-    price: 80,
-    category: "Tea",
-    image: "https://images.unsplash.com/photo-1597318113554-2f9475b3b98e?w=400&h=400&fit=crop",
-    isVeg: true,
-    popular: true
-  },
-  {
-    id: "6",
-    name: "Croissant",
-    description: "Buttery, flaky French pastry",
-    price: 120,
-    category: "Snacks",
-    image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=400&fit=crop",
-    isVeg: true
-  },
-  {
-    id: "7",
-    name: "Sandwich",
-    description: "Grilled veggie sandwich with cheese",
-    price: 220,
-    category: "Meals",
-    image: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400&h=400&fit=crop",
-    isVeg: true,
-    popular: true
-  },
-  {
-    id: "8",
-    name: "Brownie",
-    description: "Rich chocolate brownie with nuts",
-    price: 150,
-    category: "Desserts",
-    image: "https://images.unsplash.com/photo-1607920591413-4ec007e70023?w=400&h=400&fit=crop",
-    isVeg: true
-  },
-];
+// Helper to map snake_case DB row → camelCase Order
+function mapOrder(row: any): Order {
+  return {
+    id: row.id,
+    tableNumber: row.table_number,
+    customerName: row.customer_name,
+    customerMobile: row.customer_mobile,
+    total: row.total,
+    status: row.status,
+    createdAt: new Date(row.created_at).getTime(),
+    paymentMethod: row.payment_method,
+    paymentCompleted: row.payment_completed,
+    items: (row.order_items || []).map((oi: any) => ({
+      id: oi.menu_item_id,
+      name: oi.name,
+      price: oi.price,
+      quantity: oi.quantity,
+      description: "",
+      category: "",
+      image: "",
+      isVeg: true,
+    })),
+  };
+}
 
-const initialTables: Table[] = Array.from({ length: 25 }, (_, i) => ({
-  id: `t${i + 1}`,
-  number: `${i + 1}`,
-  status: "available",
-}));
+// Helper to map snake_case DB row → camelCase Table
+function mapTable(row: any): Table {
+  return {
+    id: row.id,
+    number: row.number,
+    status: row.status,
+    customerName: row.customer_name ?? undefined,
+    sessionId: row.session_id ?? undefined,
+  };
+}
 
-export const useStore = create<CafeState>()(
-  persist(
-    (set) => ({
-      menuItems: initialMenuItems,
-      tables: initialTables,
-      orders: [],
-      auth: {
-        role: null,
-        isAuthenticated: false,
-      },
+// Helper to map snake_case DB row → camelCase MenuItem
+function mapMenuItem(row: any): MenuItem {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    price: row.price,
+    category: row.category,
+    image: row.image,
+    isVeg: row.is_veg,
+    popular: row.popular,
+  };
+}
 
-      addMenuItem: (item) =>
-        set((state) => ({ menuItems: [...state.menuItems, item] })),
-      updateMenuItem: (id, updatedItem) =>
-        set((state) => ({
-          menuItems: state.menuItems.map((item) =>
-            item.id === id ? { ...item, ...updatedItem } : item
-          ),
-        })),
-      deleteMenuItem: (id) =>
-        set((state) => ({
-          menuItems: state.menuItems.filter((item) => item.id !== id),
-        })),
+export const useStore = create<CafeState>()((set, get) => ({
+  menuItems: [],
+  tables: [],
+  orders: [],
+  loading: false,
+  auth: {
+    role: null,
+    isAuthenticated: false,
+  },
 
-      occupyTable: (number, customerName) =>
-        set((state) => ({
-          tables: state.tables.map((t) =>
-            t.number === number
-              ? { ...t, status: "occupied", customerName, sessionId: Date.now().toString() }
-              : t
-          ),
-        })),
-      freeTable: (number) =>
-        set((state) => ({
-          tables: state.tables.map((t) =>
-            t.number === number
-              ? { ...t, status: "available", customerName: undefined, sessionId: undefined }
-              : t
-          ),
-          orders: state.orders.map((o) =>
-            o.tableNumber === number && o.status !== "delivered"
-              ? { ...o, status: "delivered" }
-              : o
-          )
-        })),
-      updateTableStatus: (number, status) =>
-        set((state) => ({
-          tables: state.tables.map((t) =>
-            t.number === number ? { ...t, status } : t
-          ),
-        })),
+  // ─── Fetchers ───────────────────────────────────────────────────────────────
 
-      placeOrder: (orderData) => {
-        const id = "ORD" + Math.floor(Math.random() * 100000);
-        set((state) => ({
-          orders: [
-            ...state.orders,
-            { ...orderData, id, status: "pending", createdAt: Date.now() },
-          ],
-        }));
-        return id;
-      },
-      updateOrderStatus: (id, status) =>
-        set((state) => ({
-          orders: state.orders.map((o) =>
-            o.id === id ? { ...o, status } : o
-          ),
-        })),
-      cancelOrder: (id) =>
-        set((state) => ({
-          orders: state.orders.filter((o) => o.id !== id),
-        })),
-      completePayment: (orderId, tableNumber) =>
-        set((state) => ({
-          orders: state.orders.map((o) =>
-            o.id === orderId ? { ...o, paymentCompleted: true } : o
-          ),
-          tables: state.tables.map((t) =>
-            t.number === tableNumber
-              ? { ...t, status: "available", customerName: undefined, sessionId: undefined }
-              : t
-          ),
-        })),
-
-      login: (role) =>
-        set(() => ({
-          auth: {
-            role,
-            isAuthenticated: true,
-          },
-        })),
-      logout: () =>
-        set(() => ({
-          auth: {
-            role: null,
-            isAuthenticated: false,
-          },
-        })),
-    }),
-    {
-      name: "smartcafe-storage",
+  fetchMenu: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/menu`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        set({ menuItems: data.map(mapMenuItem) });
+      }
+    } catch (err) {
+      console.error("fetchMenu error:", err);
     }
-  )
-);
+  },
+
+  fetchTables: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/tables`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        set({ tables: data.map(mapTable) });
+      }
+    } catch (err) {
+      console.error("fetchTables error:", err);
+    }
+  },
+
+  fetchOrders: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orders`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        set({ orders: data.map(mapOrder) });
+      }
+    } catch (err) {
+      console.error("fetchOrders error:", err);
+    }
+  },
+
+  // ─── Menu Actions ────────────────────────────────────────────────────────────
+
+  addMenuItem: async (item) => {
+    await fetch(`${API_BASE_URL}/api/menu`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "menu_" + Date.now(),
+        name: item.name,
+        description: item.description,
+        price: item.price,
+        category: item.category,
+        image: item.image,
+        is_veg: item.isVeg,
+        popular: item.popular ?? false,
+      }),
+    });
+    await get().fetchMenu();
+  },
+
+  updateMenuItem: async (id, updatedItem) => {
+    await fetch(`${API_BASE_URL}/api/menu/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: updatedItem.name,
+        description: updatedItem.description,
+        price: updatedItem.price,
+        category: updatedItem.category,
+        image: updatedItem.image,
+        is_veg: updatedItem.isVeg,
+        popular: updatedItem.popular,
+      }),
+    });
+    await get().fetchMenu();
+  },
+
+  deleteMenuItem: async (id) => {
+    await fetch(`${API_BASE_URL}/api/menu/${id}`, { method: "DELETE" });
+    await get().fetchMenu();
+  },
+
+  // ─── Table Actions ───────────────────────────────────────────────────────────
+
+  occupyTable: async (number, customerName) => {
+    await fetch(`${API_BASE_URL}/api/tables/occupy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number, customerName }),
+    });
+    await get().fetchTables();
+  },
+
+  freeTable: async (number) => {
+    await fetch(`${API_BASE_URL}/api/tables/free`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number }),
+    });
+    await get().fetchTables();
+  },
+
+  updateTableStatus: async (number, status) => {
+    await fetch(`${API_BASE_URL}/api/tables/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ number, status }),
+    });
+    await get().fetchTables();
+  },
+
+  // ─── Order Actions ───────────────────────────────────────────────────────────
+
+  placeOrder: async (orderData) => {
+    const res = await fetch(`${API_BASE_URL}/api/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tableNumber: orderData.tableNumber,
+        customerName: orderData.customerName,
+        customerMobile: orderData.customerMobile,
+        total: orderData.total,
+        items: orderData.items,
+        paymentMethod: orderData.paymentMethod,
+      }),
+    });
+    const data = await res.json();
+    await get().fetchOrders();
+    return data.orderId;
+  },
+
+  updateOrderStatus: async (id, status) => {
+    await fetch(`${API_BASE_URL}/api/orders/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    await get().fetchOrders();
+  },
+
+  cancelOrder: async (id) => {
+    await fetch(`${API_BASE_URL}/api/orders/${id}`, { method: "DELETE" });
+    await get().fetchOrders();
+  },
+
+  completePayment: async (orderId, tableNumber) => {
+    await fetch(`${API_BASE_URL}/api/orders/${orderId}/pay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tableNumber }),
+    });
+    await get().fetchOrders();
+    await get().fetchTables();
+  },
+
+  // ─── Auth Actions ────────────────────────────────────────────────────────────
+
+  login: (role) =>
+    set(() => ({
+      auth: { role, isAuthenticated: true },
+    })),
+
+  logout: () =>
+    set(() => ({
+      auth: { role: null, isAuthenticated: false },
+    })),
+}));

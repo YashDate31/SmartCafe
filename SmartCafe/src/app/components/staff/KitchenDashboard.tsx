@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock, AlertCircle, Check, ChefHat } from "lucide-react";
+import { Clock, AlertCircle, Check, ChefHat, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useStore, OrderStatus } from "../../store";
 
@@ -7,6 +7,16 @@ export function KitchenDashboard() {
   const { orders, updateOrderStatus } = useStore();
   // Filter out delivered orders from kitchen
   const activeOrders = orders.filter(o => o.status !== "delivered");
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  const handleStatusUpdate = async (orderId: string, status: OrderStatus) => {
+    setLoadingId(orderId);
+    try {
+      await updateOrderStatus(orderId, status);
+    } finally {
+      setLoadingId(null);
+    }
+  };
 
   const formatTime = (createdAt: number) => {
     const seconds = Math.floor((Date.now() - createdAt) / 1000);
@@ -99,19 +109,20 @@ export function KitchenDashboard() {
               <div className="space-y-2">
                 {order.status === "pending" && (
                   <button
-                    onClick={() => updateOrderStatus(order.id, "preparing")}
-                    className="w-full py-2.5 md:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg md:rounded-xl font-semibold transition-colors text-sm md:text-base"
+                    onClick={() => handleStatusUpdate(order.id, "preparing")}
+                    disabled={loadingId === order.id}
+                    className="w-full py-2.5 md:py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg md:rounded-xl font-semibold transition-colors text-sm md:text-base disabled:opacity-70 flex items-center justify-center gap-2"
                   >
-                    Accept & Prepare
+                    {loadingId === order.id ? <><Loader2 className="size-4 animate-spin" /> Processing...</> : "Accept & Prepare"}
                   </button>
                 )}
                 {order.status === "preparing" && (
                   <button
-                    onClick={() => updateOrderStatus(order.id, "ready")}
-                    className="w-full py-2.5 md:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg md:rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+                    onClick={() => handleStatusUpdate(order.id, "ready")}
+                    disabled={loadingId === order.id}
+                    className="w-full py-2.5 md:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg md:rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 text-sm md:text-base disabled:opacity-70"
                   >
-                    <Check className="size-4 md:size-5" />
-                    Mark as Ready
+                    {loadingId === order.id ? <><Loader2 className="size-4 animate-spin" /> Processing...</> : <><Check className="size-4 md:size-5" />Mark as Ready</>}
                   </button>
                 )}
                 {order.status === "ready" && (
