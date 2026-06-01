@@ -1,0 +1,6 @@
+{
+  "outputDirectory": "SmartCafe/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
