@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, Plus, Minus, Trash2, Clock, CreditCard, Wallet, Check } from "lucide-react";
+import { ArrowLeft, Plus, Minus, Trash2, Clock, CreditCard, Wallet, Check, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useStore } from "../../store";
 
@@ -18,6 +18,7 @@ export function CartPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
 
   const cartItems = Object.entries(cart).map(([itemId, quantity]) => {
     const item = menuItems.find((i: any) => i.id === itemId);
@@ -78,36 +79,45 @@ export function CartPage() {
     }
   };
 
-  const placeOrderHandler = () => {
+  const placeOrderHandler = async () => {
+    if (placingOrder) return;
     // Check if cash payment and verification required
     if (paymentMethod === "cash" && !otpVerified) {
       alert("Please verify your mobile number first");
       return;
     }
 
-    const table = tables.find(t => t.number === tableNumber);
-    const finalCustomerName = paymentMethod === "cash" ? customerName : (table?.customerName || "Guest");
+    setPlacingOrder(true);
+    try {
+      const table = tables.find(t => t.number === tableNumber);
+      const finalCustomerName = paymentMethod === "cash" ? customerName : (table?.customerName || "Guest");
 
-    const orderId = placeOrder({
-      tableNumber: tableNumber || "0",
-      customerName: finalCustomerName,
-      items: cartItems as any,
-      total,
-      paymentMethod,
-      customerMobile: paymentMethod === "cash" ? mobileNumber : undefined,
-      paymentCompleted: paymentMethod === "razorpay", // Online payment is completed immediately
-    });
-
-    navigate("/order-tracking", {
-      state: {
-        orderId,
-        items: cartItems,
+      const orderId = await placeOrder({
+        tableNumber: tableNumber || "0",
+        customerName: finalCustomerName,
+        items: cartItems as any,
         total,
         paymentMethod,
-        tableNumber,
         customerMobile: paymentMethod === "cash" ? mobileNumber : undefined,
-      },
-    });
+        paymentCompleted: paymentMethod === "razorpay",
+      });
+
+      navigate("/order-tracking", {
+        state: {
+          orderId,
+          items: cartItems,
+          total,
+          paymentMethod,
+          tableNumber,
+          customerMobile: paymentMethod === "cash" ? mobileNumber : undefined,
+        },
+      });
+    } catch (err) {
+      console.error("Order failed:", err);
+      alert("Failed to place order. Please try again.");
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
   if (cartItems.length === 0) {
@@ -378,9 +388,14 @@ export function CartPage() {
         {/* Place Order Button */}
         <button
           onClick={placeOrderHandler}
-          className="w-full py-3 md:py-4 bg-coffee-brown text-white rounded-full font-semibold text-base md:text-lg hover:bg-coffee-brown/90 transition-all shadow-lg hover:shadow-xl"
+          disabled={placingOrder}
+          className="w-full py-3 md:py-4 bg-coffee-brown text-white rounded-full font-semibold text-base md:text-lg hover:bg-coffee-brown/90 transition-all shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Place Order - ₹{total.toFixed(2)}
+          {placingOrder ? (
+            <><Loader2 className="size-5 animate-spin" /> Placing Order...</>
+          ) : (
+            <>Place Order - ₹{total.toFixed(2)}</>
+          )}
         </button>
       </div>
     </div>

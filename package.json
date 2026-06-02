@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "build": "npm install && npm install --prefix SmartCafe && npm run build --prefix SmartCafe",
+    "start": "serve -s SmartCafe/build -l ${PORT:-3000}"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  },
+  "devDependencies": {
+    "supabase": "^2.103.0"
+  }
+}

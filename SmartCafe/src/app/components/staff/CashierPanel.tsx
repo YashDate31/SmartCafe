@@ -1,14 +1,20 @@
 import { useState } from "react";
-import { Wallet, Search, CheckCircle, Clock, TrendingUp } from "lucide-react";
+import { Wallet, Search, CheckCircle, Clock, TrendingUp, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useStore } from "../../store";
 
 export function CashierPanel() {
   const { orders, completePayment } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const markAsPaid = (orderId: string, tableNumber: string) => {
-    completePayment(orderId, tableNumber);
+  const markAsPaid = async (orderId: string, tableNumber: string) => {
+    setLoadingId(orderId);
+    try {
+      await completePayment(orderId, tableNumber);
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   const deliveredOrders = orders.filter((o) => o.status === "delivered" && !o.paymentCompleted);
@@ -121,10 +127,10 @@ export function CashierPanel() {
 
                 <button
                   onClick={() => markAsPaid(order.id, order.tableNumber)}
-                  className="w-full py-2.5 md:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg md:rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+                  disabled={loadingId === order.id}
+                  className="w-full py-2.5 md:py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg md:rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 text-sm md:text-base disabled:opacity-70"
                 >
-                  <CheckCircle className="size-4 md:size-5" />
-                  Payment Received & Free Table
+                  {loadingId === order.id ? <><Loader2 className="size-4 animate-spin" /> Processing...</> : <><CheckCircle className="size-4 md:size-5" />Payment Received &amp; Free Table</>}
                 </button>
               </motion.div>
             ))}

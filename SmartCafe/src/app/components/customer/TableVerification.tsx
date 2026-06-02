@@ -8,6 +8,7 @@ export function TableVerification() {
   const { tableNumber } = useParams();
   const navigate = useNavigate();
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
   const { tables, occupyTable } = useStore();
 
   const table = tables.find((t) => t.number === tableNumber);
@@ -48,11 +49,16 @@ export function TableVerification() {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && tableNumber) {
-      occupyTable(tableNumber, name.trim());
-      navigate(`/menu?table=${tableNumber}`);
+      setLoading(true);
+      try {
+        await occupyTable(tableNumber, name.trim());
+        navigate(`/menu?table=${tableNumber}`);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -89,10 +95,10 @@ export function TableVerification() {
 
           <button
             type="submit"
-            disabled={!name.trim()}
+            disabled={!name.trim() || loading}
             className="w-full py-3 md:py-4 bg-coffee-brown text-white rounded-xl md:rounded-2xl font-bold text-base md:text-lg hover:bg-coffee-brown/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
-            Start Ordering
+            {loading ? "Starting..." : "Start Ordering"}
           </button>
         </form>
       </motion.div>
