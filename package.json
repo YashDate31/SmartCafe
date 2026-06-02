@@ -1,6 +1,10 @@
 {
   "scripts": {
-    "build": "npm install --prefix SmartCafe && npm run build --prefix SmartCafe && cp -r SmartCafe/build build"
+    "build": "npm install --prefix SmartCafe && npm run build --prefix SmartCafe && cp -r SmartCafe/build build",
+    "start": "serve -s build"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
   },
   "devDependencies": {
     "supabase": "^2.103.0"
