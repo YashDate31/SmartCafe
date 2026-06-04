@@ -8,7 +8,7 @@ export function CartPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { cart: initialCart = {}, menuItems = [], tableNumber = null } = location.state || {};
-  const { placeOrder, tables } = useStore();
+  const { placeOrder, tables, settings } = useStore();
 
   const [cart, setCart] = useState<Record<string, number>>(initialCart);
   const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "cash">("razorpay");
@@ -26,7 +26,8 @@ export function CartPage() {
   });
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-  const tax = subtotal * 0.05;
+  const taxRate = settings?.taxRate ?? 5;
+  const tax = subtotal * (taxRate / 100);
   const total = subtotal + tax;
 
   const updateQuantity = (itemId: string, delta: number) => {
@@ -218,7 +219,7 @@ export function CartPage() {
               <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax (5%)</span>
+              <span className="text-muted-foreground">Tax ({taxRate}%)</span>
               <span className="font-semibold">₹{tax.toFixed(2)}</span>
             </div>
             <div className="h-px bg-border"></div>
@@ -230,7 +231,7 @@ export function CartPage() {
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="size-4" />
-            <span>Estimated preparation time: 15-20 minutes</span>
+            <span>Estimated preparation time: {settings?.defaultPrepTime ?? 20} minutes</span>
           </div>
         </div>
 

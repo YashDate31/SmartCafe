@@ -46,17 +46,31 @@ export interface AuthState {
   isAuthenticated: boolean;
 }
 
+export interface CafeSettings {
+  cafeName: string;
+  taxRate: number;
+  currency: string;
+  enableNotifications: boolean;
+  enableSounds: boolean;
+  autoAcceptOrders: boolean;
+  maxTablesPerWaiter: number;
+  defaultPrepTime: number;
+}
+
 interface CafeState {
   menuItems: MenuItem[];
   tables: Table[];
   orders: Order[];
   auth: AuthState;
+  settings: CafeSettings;
   loading: boolean;
 
   // Data Fetching
   fetchMenu: () => Promise<void>;
   fetchTables: () => Promise<void>;
   fetchOrders: () => Promise<void>;
+  fetchSettings: () => Promise<void>;
+  updateSettings: (settings: CafeSettings) => Promise<void>;
 
   // Menu Actions
   addMenuItem: (item: Omit<MenuItem, "id">) => Promise<void>;
@@ -138,6 +152,16 @@ export const useStore = create<CafeState>()((set, get) => ({
     role: null,
     isAuthenticated: false,
   },
+  settings: {
+    cafeName: "SmartCafe",
+    taxRate: 5,
+    currency: "INR",
+    enableNotifications: true,
+    enableSounds: true,
+    autoAcceptOrders: false,
+    maxTablesPerWaiter: 5,
+    defaultPrepTime: 20
+  },
 
   // ─── Fetchers ───────────────────────────────────────────────────────────────
 
@@ -174,6 +198,51 @@ export const useStore = create<CafeState>()((set, get) => ({
       }
     } catch (err) {
       console.error("fetchOrders error:", err);
+    }
+  },
+
+  fetchSettings: async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/settings`);
+      const data = await res.json();
+      if (data && !data.error) {
+        set({
+          settings: {
+            cafeName: data.cafe_name || "SmartCafe",
+            taxRate: data.tax_rate !== undefined ? Number(data.tax_rate) : 5,
+            currency: data.currency || "INR",
+            enableNotifications: data.enable_notifications !== undefined ? data.enable_notifications : true,
+            enableSounds: data.enable_sounds !== undefined ? data.enable_sounds : true,
+            autoAcceptOrders: data.auto_accept_orders !== undefined ? data.auto_accept_orders : false,
+            maxTablesPerWaiter: data.max_tables_per_waiter !== undefined ? Number(data.max_tables_per_waiter) : 5,
+            defaultPrepTime: data.default_prep_time !== undefined ? Number(data.default_prep_time) : 20
+          }
+        });
+      }
+    } catch (err) {
+      console.error("fetchSettings error:", err);
+    }
+  },
+
+  updateSettings: async (newSettings) => {
+    try {
+      await fetch(`${API_BASE_URL}/api/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cafe_name: newSettings.cafeName,
+          tax_rate: newSettings.taxRate,
+          currency: newSettings.currency,
+          enable_notifications: newSettings.enableNotifications,
+          enable_sounds: newSettings.enableSounds,
+          auto_accept_orders: newSettings.autoAcceptOrders,
+          max_tables_per_waiter: newSettings.maxTablesPerWaiter,
+          default_prep_time: newSettings.defaultPrepTime
+        })
+      });
+      set({ settings: newSettings });
+    } catch (err) {
+      console.error("updateSettings error:", err);
     }
   },
 

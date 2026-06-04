@@ -159,6 +159,48 @@ api.post("/api/orders/:id/pay", async (c) => {
   return c.json({ status: "success" });
 });
 
+// 4. Settings Endpoints
+api.get("/api/settings", async (c) => {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.from("settings").select("*").eq("id", "config").maybeSingle();
+  if (error) return c.json({ error: error.message }, 500);
+  if (!data) {
+    return c.json({
+      id: "config",
+      cafe_name: "SmartCafe",
+      tax_rate: 5,
+      currency: "INR",
+      enable_notifications: true,
+      enable_sounds: true,
+      auto_accept_orders: false,
+      max_tables_per_waiter: 5,
+      default_prep_time: 20
+    });
+  }
+  return c.json(data);
+});
+
+api.put("/api/settings", async (c) => {
+  const supabase = getSupabaseClient();
+  const body = await c.req.json();
+  const { data, error } = await supabase.from("settings")
+    .upsert({
+      id: "config",
+      cafe_name: body.cafe_name,
+      tax_rate: body.tax_rate,
+      currency: body.currency,
+      enable_notifications: body.enable_notifications,
+      enable_sounds: body.enable_sounds,
+      auto_accept_orders: body.auto_accept_orders,
+      max_tables_per_waiter: body.max_tables_per_waiter,
+      default_prep_time: body.default_prep_time,
+      updated_at: new Date().toISOString()
+    })
+    .select().single();
+  if (error) return c.json({ error: error.message }, 500);
+  return c.json(data);
+});
+
 // Mount the API sub-app under different potential path prefixes
 app.route("/functions/v1/server", api);
 app.route("/server", api);

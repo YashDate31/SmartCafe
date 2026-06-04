@@ -13,12 +13,14 @@ export function useRealtimeSync() {
   const fetchOrders = useStore((s) => s.fetchOrders);
   const fetchTables = useStore((s) => s.fetchTables);
   const fetchMenu   = useStore((s) => s.fetchMenu);
+  const fetchSettings = useStore((s) => s.fetchSettings);
 
   useEffect(() => {
     // Initial load
     fetchMenu();
     fetchTables();
     fetchOrders();
+    fetchSettings();
 
     // Subscribe to realtime changes
     const channel = supabase
@@ -37,6 +39,11 @@ export function useRealtimeSync() {
         "postgres_changes",
         { event: "*", schema: "public", table: "menu_items" },
         () => fetchMenu()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "settings" },
+        () => fetchSettings()
       )
       .subscribe();
 
