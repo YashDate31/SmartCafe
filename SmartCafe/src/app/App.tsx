@@ -11,8 +11,11 @@ import { MainLogin } from "./components/MainLogin";
 import { RoleSwitcher } from "./components/RoleSwitcher";
 import { FloatingRoleSwitcher } from "./components/FloatingRoleSwitcher";
 import { CustomerLoginGate } from "./components/CustomerLoginGate";
+import { useRealtimeSync } from "./useRealtimeSync";
 
 export default function App() {
+  useRealtimeSync();
+
   return (
     <BrowserRouter>
       <Routes>
