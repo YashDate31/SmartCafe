@@ -152,10 +152,13 @@ export const useStore = create<CafeState>()((set, get) => ({
   tables: [],
   orders: [],
   loading: false,
-  auth: {
-    role: null,
-    isAuthenticated: false,
-  },
+  auth: (() => {
+    try {
+      const saved = localStorage.getItem("smartcafe_auth");
+      if (saved) return JSON.parse(saved) as AuthState;
+    } catch {}
+    return { role: null, isAuthenticated: false };
+  })(),
   settings: {
     cafeName: "SmartCafe",
     taxRate: 5,
@@ -376,13 +379,14 @@ export const useStore = create<CafeState>()((set, get) => ({
 
   // ─── Auth Actions ────────────────────────────────────────────────────────────
 
-  login: (role) =>
-    set(() => ({
-      auth: { role, isAuthenticated: true },
-    })),
+  login: (role) => {
+    const authState: AuthState = { role, isAuthenticated: true };
+    try { localStorage.setItem("smartcafe_auth", JSON.stringify(authState)); } catch {}
+    set(() => ({ auth: authState }));
+  },
 
-  logout: () =>
-    set(() => ({
-      auth: { role: null, isAuthenticated: false },
-    })),
+  logout: () => {
+    try { localStorage.removeItem("smartcafe_auth"); } catch {}
+    set(() => ({ auth: { role: null, isAuthenticated: false } }));
+  },
 }));
