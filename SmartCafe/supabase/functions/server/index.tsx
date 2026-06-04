@@ -100,9 +100,12 @@ api.post("/api/orders", async (c) => {
   const { tableNumber, customerName, customerMobile, total, items, paymentMethod } = await c.req.json();
   const orderId = "ORD" + Math.floor(Math.random() * 100000);
 
+  // Use null for walk-in orders (no table) to avoid foreign key violations
+  const tableNum = (tableNumber && tableNumber !== "0") ? tableNumber : null;
+
   const { error: orderError } = await supabase.from("orders").insert({
     id: orderId,
-    table_number: tableNumber,
+    table_number: tableNum,
     customer_name: customerName,
     customer_mobile: customerMobile,
     total,
