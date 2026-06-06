@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, Navigate } from "react-router";
+import { useLocation } from "react-router";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -41,16 +41,10 @@ const menuItems = [
 
 
 export function AdminDashboard() {
-  const { orders, tables, menuItems: storeMenuItems, auth, logout } = useStore();
+  const { orders, tables, menuItems: storeMenuItems, logout } = useStore();
   const location = useLocation();
   const [selectedMenu, setSelectedMenu] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // ── Auth Guard ───────────────────────────────────────────────────────────────
-  // If not authenticated as admin, redirect to staff login
-  if (!auth.isAuthenticated || auth.role !== "admin") {
-    return <Navigate to="/staff-login" replace />;
-  }
 
   // Check if there's an initial menu from navigation state
   useEffect(() => {

@@ -1,17 +1,11 @@
 import { useState } from "react";
 import { Package, Check, Grid3x3, Search, CheckCircle } from "lucide-react";
 import { motion } from "motion/react";
-import { Navigate } from "react-router";
 import { useStore } from "../../store";
 
 export function WaiterPanel() {
-  const { orders, updateOrderStatus, tables, freeTable, auth } = useStore();
+  const { orders, updateOrderStatus, tables, freeTable } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Auth Guard
-  if (!auth.isAuthenticated || auth.role !== "waiter") {
-    return <Navigate to="/staff-login" replace />;
-  }
 
   const markAsDelivered = (orderId: string) => {
     updateOrderStatus(orderId, "delivered");

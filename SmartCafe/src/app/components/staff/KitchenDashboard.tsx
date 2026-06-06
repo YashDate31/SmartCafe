@@ -1,16 +1,10 @@
 import { useState, useEffect } from "react";
 import { Clock, AlertCircle, Check, ChefHat } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { Navigate } from "react-router";
 import { useStore, OrderStatus } from "../../store";
 
 export function KitchenDashboard() {
-  const { orders, updateOrderStatus, auth } = useStore();
-
-  // Auth Guard
-  if (!auth.isAuthenticated || auth.role !== "kitchen") {
-    return <Navigate to="/staff-login" replace />;
-  }
+  const { orders, updateOrderStatus } = useStore();
 
   // Filter out delivered orders from kitchen
   const activeOrders = orders.filter(o => o.status !== "delivered");

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { API_BASE_URL } from "./supabaseClient";
 
 export type OrderStatus = "pending" | "preparing" | "ready" | "delivered";
@@ -147,24 +148,16 @@ function mapMenuItem(row: any): MenuItem {
   };
 }
 
-export const useStore = create<CafeState>()((set, get) => ({
+export const useStore = create<CafeState>()(persist(
+  (set, get) => ({
   menuItems: [],
   tables: [],
   orders: [],
   loading: false,
-  auth: (() => {
-    try {
-      const saved = localStorage.getItem("sc_auth_v2");
-      if (saved) {
-        const parsed = JSON.parse(saved) as AuthState;
-        // Validate the parsed object has the expected shape
-        if (parsed && typeof parsed.isAuthenticated === "boolean" && parsed.role !== undefined) {
-          return parsed;
-        }
-      }
-    } catch {}
-    return { role: null, isAuthenticated: false };
-  })(),
+  auth: {
+    role: null,
+    isAuthenticated: false,
+  },
   settings: {
     cafeName: "SmartCafe",
     taxRate: 5,
@@ -173,7 +166,7 @@ export const useStore = create<CafeState>()((set, get) => ({
     enableSounds: true,
     autoAcceptOrders: false,
     maxTablesPerWaiter: 5,
-    defaultPrepTime: 20
+    defaultPrepTime: 20,
   },
 
   // ─── Fetchers ───────────────────────────────────────────────────────────────
@@ -385,20 +378,15 @@ export const useStore = create<CafeState>()((set, get) => ({
 
   // ─── Auth Actions ────────────────────────────────────────────────────────────
 
-  login: (role) => {
-    const authState: AuthState = { role, isAuthenticated: true };
-    try {
-      localStorage.removeItem("smartcafe_auth"); // clear old key
-      localStorage.setItem("sc_auth_v2", JSON.stringify(authState));
-    } catch {}
-    set(() => ({ auth: authState }));
-  },
+  login: (role) =>
+    set(() => ({ auth: { role, isAuthenticated: true } })),
 
-  logout: () => {
-    try {
-      localStorage.removeItem("sc_auth_v2");
-      localStorage.removeItem("smartcafe_auth"); // clear old key too
-    } catch {}
-    set(() => ({ auth: { role: null, isAuthenticated: false } }));
-  },
-}));
+  logout: () =>
+    set(() => ({ auth: { role: null, isAuthenticated: false } })),
+}),
+{
+  name: "smartcafe-session",          // localStorage key
+  storage: createJSONStorage(() => localStorage),
+  partialize: (state) => ({ auth: state.auth }), // only persist auth, not orders/menu/tables
+}
+));

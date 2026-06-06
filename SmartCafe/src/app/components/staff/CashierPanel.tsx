@@ -1,17 +1,11 @@
 import { useState } from "react";
 import { Wallet, Search, CheckCircle, Clock, TrendingUp } from "lucide-react";
 import { motion } from "motion/react";
-import { Navigate } from "react-router";
 import { useStore } from "../../store";
 
 export function CashierPanel() {
-  const { orders, completePayment, auth } = useStore();
+  const { orders, completePayment } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Auth Guard
-  if (!auth.isAuthenticated || auth.role !== "cashier") {
-    return <Navigate to="/staff-login" replace />;
-  }
 
   const markAsPaid = (orderId: string, tableNumber: string) => {
     completePayment(orderId, tableNumber);
