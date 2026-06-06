@@ -18,6 +18,7 @@ export function CartPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
+  const [isPlacing, setIsPlacing] = useState(false); // prevents double-submit
 
   const cartItems = Object.entries(cart).map(([itemId, quantity]) => {
     const item = menuItems.find((i: any) => i.id === itemId);
@@ -80,22 +81,18 @@ export function CartPage() {
   };
 
   const placeOrderHandler = async () => {
+    // Prevent double-submit
+    if (isPlacing) return;
+
     // Check if cash payment and verification required
     if (paymentMethod === "cash" && !otpVerified) {
       alert("Please verify your mobile number first");
       return;
     }
 
+    setIsPlacing(true);
     const table = tables.find(t => t.number === tableNumber);
     const finalCustomerName = paymentMethod === "cash" ? customerName : (table?.customerName || "Guest");
-
-    console.log("Placing order...", {
-      tableNumber: tableNumber || "0",
-      customerName: finalCustomerName,
-      items: cartItems,
-      total,
-      paymentMethod,
-    });
 
     try {
       const orderId = await placeOrder({
@@ -105,10 +102,8 @@ export function CartPage() {
         total,
         paymentMethod,
         customerMobile: paymentMethod === "cash" ? mobileNumber : undefined,
-        paymentCompleted: paymentMethod === "razorpay", // Online payment is completed immediately
+        paymentCompleted: paymentMethod === "razorpay",
       });
-
-      console.log("Order placed successfully! Order ID:", orderId);
 
       navigate("/order-tracking", {
         state: {
@@ -123,6 +118,7 @@ export function CartPage() {
     } catch (err) {
       console.error("Failed to place order:", err);
       alert("Failed to place order: " + (err instanceof Error ? err.message : String(err)));
+      setIsPlacing(false); // re-enable only on error so user can retry
     }
   };
 
@@ -394,9 +390,14 @@ export function CartPage() {
         {/* Place Order Button */}
         <button
           onClick={placeOrderHandler}
-          className="w-full py-3 md:py-4 bg-coffee-brown text-white rounded-full font-semibold text-base md:text-lg hover:bg-coffee-brown/90 transition-all shadow-lg hover:shadow-xl"
+          disabled={isPlacing}
+          className={`w-full py-3 md:py-4 rounded-full font-semibold text-base md:text-lg transition-all shadow-lg ${
+            isPlacing
+              ? "bg-coffee-brown/50 text-white cursor-not-allowed"
+              : "bg-coffee-brown text-white hover:bg-coffee-brown/90 hover:shadow-xl"
+          }`}
         >
-          Place Order - ₹{total.toFixed(2)}
+          {isPlacing ? "Placing Order..." : `Place Order - ₹${total.toFixed(2)}`}
         </button>
       </div>
     </div>

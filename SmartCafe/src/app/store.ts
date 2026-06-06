@@ -154,8 +154,14 @@ export const useStore = create<CafeState>()((set, get) => ({
   loading: false,
   auth: (() => {
     try {
-      const saved = localStorage.getItem("smartcafe_auth");
-      if (saved) return JSON.parse(saved) as AuthState;
+      const saved = localStorage.getItem("sc_auth_v2");
+      if (saved) {
+        const parsed = JSON.parse(saved) as AuthState;
+        // Validate the parsed object has the expected shape
+        if (parsed && typeof parsed.isAuthenticated === "boolean" && parsed.role !== undefined) {
+          return parsed;
+        }
+      }
     } catch {}
     return { role: null, isAuthenticated: false };
   })(),
@@ -381,12 +387,18 @@ export const useStore = create<CafeState>()((set, get) => ({
 
   login: (role) => {
     const authState: AuthState = { role, isAuthenticated: true };
-    try { localStorage.setItem("smartcafe_auth", JSON.stringify(authState)); } catch {}
+    try {
+      localStorage.removeItem("smartcafe_auth"); // clear old key
+      localStorage.setItem("sc_auth_v2", JSON.stringify(authState));
+    } catch {}
     set(() => ({ auth: authState }));
   },
 
   logout: () => {
-    try { localStorage.removeItem("smartcafe_auth"); } catch {}
+    try {
+      localStorage.removeItem("sc_auth_v2");
+      localStorage.removeItem("smartcafe_auth"); // clear old key too
+    } catch {}
     set(() => ({ auth: { role: null, isAuthenticated: false } }));
   },
 }));
