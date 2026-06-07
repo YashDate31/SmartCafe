@@ -8,7 +8,7 @@ export function CartPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { cart: initialCart = {}, menuItems = [], tableNumber = null } = location.state || {};
-  const { placeOrder, tables } = useStore();
+  const { placeOrder, tables, settings } = useStore();
 
   const [cart, setCart] = useState<Record<string, number>>(initialCart);
   const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "cash">("razorpay");
@@ -18,6 +18,7 @@ export function CartPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
+  const [isPlacing, setIsPlacing] = useState(false); // prevents double-submit
 
   const cartItems = Object.entries(cart).map(([itemId, quantity]) => {
     const item = menuItems.find((i: any) => i.id === itemId);
@@ -25,7 +26,8 @@ export function CartPage() {
   });
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-  const tax = subtotal * 0.05;
+  const taxRate = settings?.taxRate ?? 5;
+  const tax = subtotal * (taxRate / 100);
   const total = subtotal + tax;
 
   const updateQuantity = (itemId: string, delta: number) => {
@@ -78,36 +80,46 @@ export function CartPage() {
     }
   };
 
-  const placeOrderHandler = () => {
+  const placeOrderHandler = async () => {
+    // Prevent double-submit
+    if (isPlacing) return;
+
     // Check if cash payment and verification required
     if (paymentMethod === "cash" && !otpVerified) {
       alert("Please verify your mobile number first");
       return;
     }
 
+    setIsPlacing(true);
     const table = tables.find(t => t.number === tableNumber);
     const finalCustomerName = paymentMethod === "cash" ? customerName : (table?.customerName || "Guest");
 
-    const orderId = placeOrder({
-      tableNumber: tableNumber || "0",
-      customerName: finalCustomerName,
-      items: cartItems as any,
-      total,
-      paymentMethod,
-      customerMobile: paymentMethod === "cash" ? mobileNumber : undefined,
-      paymentCompleted: paymentMethod === "razorpay", // Online payment is completed immediately
-    });
-
-    navigate("/order-tracking", {
-      state: {
-        orderId,
-        items: cartItems,
+    try {
+      const orderId = await placeOrder({
+        tableNumber: tableNumber || "0",
+        customerName: finalCustomerName,
+        items: cartItems as any,
         total,
         paymentMethod,
-        tableNumber,
         customerMobile: paymentMethod === "cash" ? mobileNumber : undefined,
-      },
-    });
+        paymentCompleted: paymentMethod === "razorpay",
+      });
+
+      navigate("/order-tracking", {
+        state: {
+          orderId,
+          items: cartItems,
+          total,
+          paymentMethod,
+          tableNumber,
+          customerMobile: paymentMethod === "cash" ? mobileNumber : undefined,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to place order:", err);
+      alert("Failed to place order: " + (err instanceof Error ? err.message : String(err)));
+      setIsPlacing(false); // re-enable only on error so user can retry
+    }
   };
 
   if (cartItems.length === 0) {
@@ -208,7 +220,7 @@ export function CartPage() {
               <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Tax (5%)</span>
+              <span className="text-muted-foreground">Tax ({taxRate}%)</span>
               <span className="font-semibold">₹{tax.toFixed(2)}</span>
             </div>
             <div className="h-px bg-border"></div>
@@ -220,7 +232,7 @@ export function CartPage() {
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="size-4" />
-            <span>Estimated preparation time: 15-20 minutes</span>
+            <span>Estimated preparation time: {settings?.defaultPrepTime ?? 20} minutes</span>
           </div>
         </div>
 
@@ -378,9 +390,14 @@ export function CartPage() {
         {/* Place Order Button */}
         <button
           onClick={placeOrderHandler}
-          className="w-full py-3 md:py-4 bg-coffee-brown text-white rounded-full font-semibold text-base md:text-lg hover:bg-coffee-brown/90 transition-all shadow-lg hover:shadow-xl"
+          disabled={isPlacing}
+          className={`w-full py-3 md:py-4 rounded-full font-semibold text-base md:text-lg transition-all shadow-lg ${
+            isPlacing
+              ? "bg-coffee-brown/50 text-white cursor-not-allowed"
+              : "bg-coffee-brown text-white hover:bg-coffee-brown/90 hover:shadow-xl"
+          }`}
         >
-          Place Order - ₹{total.toFixed(2)}
+          {isPlacing ? "Placing Order..." : `Place Order - ₹${total.toFixed(2)}`}
         </button>
       </div>
     </div>

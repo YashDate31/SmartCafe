@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Save, Bell, Lock, Palette, Info } from "lucide-react";
 import { motion } from "motion/react";
+import { useStore } from "../../store";
 
 export function SettingsPanel() {
+  const storeSettings = useStore((s) => s.settings);
+  const updateSettings = useStore((s) => s.updateSettings);
+
   const [settings, setSettings] = useState({
     cafeName: "SmartCafe",
     taxRate: 5,
@@ -14,9 +18,21 @@ export function SettingsPanel() {
     defaultPrepTime: 20,
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (storeSettings) {
+      setSettings(storeSettings);
+    }
+  }, [storeSettings]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Settings saved successfully!");
+    try {
+      await updateSettings(settings);
+      alert("Settings saved successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save settings.");
+    }
   };
 
   return (

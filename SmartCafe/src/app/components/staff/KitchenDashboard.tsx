@@ -5,6 +5,7 @@ import { useStore, OrderStatus } from "../../store";
 
 export function KitchenDashboard() {
   const { orders, updateOrderStatus } = useStore();
+
   // Filter out delivered orders from kitchen
   const activeOrders = orders.filter(o => o.status !== "delivered");
 
@@ -96,9 +97,9 @@ export function KitchenDashboard() {
               {/* Order Items */}
               <div className="mb-4 md:mb-6 space-y-2 md:space-y-3">
                 {order.items.map((item, idx) => (
-                  <div key={idx} className="bg-white/5 rounded-lg md:rounded-xl p-2 md:p-3">
+                  <div key={idx} className="bg-black/20 border border-white/10 rounded-lg md:rounded-xl p-2 md:p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-base md:text-lg">{item.name}</span>
+                      <span className="font-bold text-base md:text-lg text-white drop-shadow">{item.name}</span>
                       <span className="text-lg md:text-xl font-bold text-neon-highlight">×{item.quantity}</span>
                     </div>
                   </div>

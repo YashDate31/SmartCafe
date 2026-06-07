@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { Coffee, Shield, ChefHat, Wallet, Package, QrCode, KeyRound } from "lucide-react";
+import { Coffee, Shield, ChefHat, Wallet, Package, QrCode, KeyRound, User } from "lucide-react";
 import { useStore } from "../store";
 
 const roles = [
@@ -57,19 +57,21 @@ export function MainLogin() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === "admin" && password === "staff2024") {
+
+    // All roles use the same credentials
+    const isAuthorized = username === "admin" && password === "SmartCafe@2026";
+
+    if (isAuthorized) {
       if (selectedRole === "qr") {
         login("admin");
-        // Navigate to admin and set selected menu to tables via state
         navigate("/admin", { state: { initialMenu: "tables" } });
       } else if (selectedRole) {
-        login(selectedRole as any);
+        login(selectedRole === "admin" ? "admin" : selectedRole as any);
         const role = roles.find((r) => r.id === selectedRole);
         navigate(role!.path);
       }
     } else {
       setError(true);
-      setPin("");
       setTimeout(() => setError(false), 2000);
     }
   };
@@ -126,7 +128,7 @@ export function MainLogin() {
             ))}
           </motion.div>
         ) : (
-          // PIN Entry
+          // Login Form
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -144,7 +146,7 @@ export function MainLogin() {
                 <h2 className="text-xl md:text-2xl font-bold text-coffee-brown mb-2">
                   {roles.find((r) => r.id === selectedRole)?.title}
                 </h2>
-                <p className="text-sm md:text-base text-muted-foreground">Enter your credentials to continue</p>
+                <p className="text-sm md:text-base text-muted-foreground">Enter credentials to continue</p>
               </div>
 
               {/* Login Form */}
@@ -153,17 +155,20 @@ export function MainLogin() {
                   <label className="block text-sm font-medium text-coffee-brown mb-2 text-left">
                     Username
                   </label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => { setUsername(e.target.value); setError(false); }}
-                    placeholder="Enter username"
-                    className={`w-full px-4 py-3 md:py-4 glass bg-white/50 rounded-xl md:rounded-2xl focus:outline-none focus:ring-2 text-base md:text-lg font-medium transition-all ${
-                      error ? "border-2 border-red-500 focus:ring-red-500 shake" : "focus:ring-coffee-brown"
-                    }`}
-                    required
-                    autoFocus
-                  />
+                  <div className="relative">
+                    <User className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 size-5 md:size-6 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => { setUsername(e.target.value); setError(false); }}
+                      placeholder="Enter username"
+                      className={`w-full pl-12 md:pl-14 pr-4 py-3 md:py-4 glass bg-white/50 rounded-xl md:rounded-2xl focus:outline-none focus:ring-2 text-base md:text-lg font-medium transition-all ${
+                        error ? "border-2 border-red-500 focus:ring-red-500 shake" : "focus:ring-coffee-brown"
+                      }`}
+                      required
+                      autoFocus
+                    />
+                  </div>
                 </div>
                 
                 <div>
@@ -192,9 +197,6 @@ export function MainLogin() {
                       Invalid credentials. Please try again.
                     </motion.p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-3 text-center">
-                    Demo - Username: admin | Password: staff2024
-                  </p>
                 </div>
 
                 <div className="space-y-3">
